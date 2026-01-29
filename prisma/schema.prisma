@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client"
   output   = "../generated/prisma"
@@ -13,8 +7,6 @@ datasource db {
   provider = "postgresql"
 }
 
-
-// Enums (kept for reference, not used in relations yet)
 enum UserRole {
   CUSTOMER
   SELLER
@@ -24,278 +16,236 @@ enum UserRole {
 enum UserStatus {
   ACTIVE
   BANNED
-  SUSPENDED
 }
 
 enum OrderStatus {
-  PENDING_PAYMENT
-  PLACED
   PROCESSING
   SHIPPED
   DELIVERED
   CANCELLED
-  REFUNDED
 }
 
-enum PaymentMethod {
-  COD
-  CARD
-  UPI
-  WALLET
-}
-
-enum PaymentStatus {
-  PENDING
-  PAID
-  FAILED
-  REFUNDED
-}
-
-// Medicine Category
 model MedicineCategory {
-  id          String   @id @default(cuid())
+  id          String     @id @default(uuid())
   name        String
-  slug        String   @unique
+  slug        String     @unique
   description String?
   image       String?
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  medicines Medicine[]
-  
+  isActive    Boolean    @default(true)
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  medicines   Medicine[]
+
   @@index([slug])
   @@index([name])
 }
 
-// Medicine
 model Medicine {
-  id           String  @id @default(uuid())
+  id           String           @id @default(uuid())
   name         String
-  slug         String  @unique
+  slug         String           @unique
   brandName    String
   genericName  String?
   manufacturer String?
   description  String?
-  dosage       String?
-  isOtc        Boolean @default(true)
+  // dosage       String?
+  isOtc        Boolean          @default(true)
   thumbnail    String?
-  isActive     Boolean @default(true)
-  rating       Float   @default(0)
-  totalRatings Int     @default(0)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-  
-  categoryId String
-  category   MedicineCategory @relation(fields: [categoryId], references: [id])
-  
-  // Remove user relations for now
-  sellers  SellerMedicine[]
-  reviews  Review[]
-  
+  isActive     Boolean          @default(true)
+  rating       Float            @default(0)
+  totalRatings Int              @default(0)
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+  categoryId   String
+  category     MedicineCategory @relation(fields: [categoryId], references: [id])
+  sellers      SellerMedicine[]
+  reviews      Review[]
+
   @@index([name])
   @@index([slug])
   @@index([categoryId])
   @@index([isActive])
-  @@index([isOtc])
 }
 
-// Seller Medicine (Inventory)
-// This will store price, stock, etc. for each seller's medicine
 model SellerMedicine {
-  id            String    @id @default(uuid())
+  id            String   @id @default(uuid())
   price         Float
   originalPrice Float?
-  stockQuantity Int       @default(0)
+  stockQuantity Int      @default(0)
   expiryDate    DateTime?
   batchNumber   String?
-  isAvailable   Boolean   @default(true)
-  discount      Float     @default(0)
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  // We'll add these back after better-auth setup
-  // sellerId   String
-  // seller   User     @relation(fields: [sellerId], references: [id])
-  
-  medicineId String
-  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
-  
-  cartItems  CartItem[]
-  orderItems OrderItem[]
-  
-  // Remove sellerId from unique constraint for now
-  @@unique([medicineId, batchNumber])
+  isAvailable   Boolean  @default(true)
+  discount      Float    @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  medicineId    String
+  medicine      Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
+  sellerId      String
+  seller        User     @relation(fields: [sellerId], references: [id])
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+
+  @@unique([medicineId, batchNumber, sellerId])
   @@index([medicineId])
+  @@index([sellerId])
   @@index([isAvailable])
-  @@index([price])
 }
 
-// Cart - Temporarily without user relation
 model Cart {
-  id        String @id @default(uuid())
-  // We'll add userId back after better-auth setup
-  // userId    String @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // Remove user relation for now
-  // user  User      @relation(fields: [userId], references: [id])
-  
-  items CartItem[]
-  
-  // Remove userId index for now
-  // @@index([userId])
+  id        String     @id @default(uuid())
+  userId    String
+  user      User       @relation(fields: [userId], references: [id])
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  items     CartItem[]
+
+  @@index([userId])
 }
 
-// Cart Item
 model CartItem {
-  id       String @id @default(uuid())
-  quantity Int    @default(1)
-  
-  cartId String
-  cart   Cart   @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  
+  id               String         @id @default(uuid())
+  quantity         Int            @default(1)
+  cartId           String
+  cart             Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
   sellerMedicineId String
   sellerMedicine   SellerMedicine @relation(fields: [sellerMedicineId], references: [id])
-  
+
   @@unique([cartId, sellerMedicineId])
-  @@index([cartId])
 }
 
-// Order - Without user relations for now
 model Order {
-  id              String        @id @default(uuid())
-  orderNumber     String        @unique
+  id              String      @id @default(uuid())
+  orderNumber     String      @unique
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
   totalAmount     Float
-  shippingFee     Float         @default(0)
-  discount        Float         @default(0)
+  discount        Float       @default(0)
   finalAmount     Float
-  status          OrderStatus   @default(PENDING_PAYMENT)
+  status          OrderStatus @default(PROCESSING)
   shippingAddress String
-  paymentMethod   PaymentMethod @default(COD)
-  paymentStatus   PaymentStatus @default(PENDING)
+  paymentMethod   String      @default("COD")
   notes           String?
-  cancelledReason String?
-  
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  
-  // We'll add userId back after better-auth
-  // userId String
-  // user   User   @relation(fields: [userId], references: [id])
-  
-  items      OrderItem[]
-  orderLogs  OrderLog[]
-  reviews    Review[]  // Keep this for order-review relation
-  
-  // Remove userId index for now
-  // @@index([userId])
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  items           OrderItem[]
+  orderLogs       OrderLog[]
+  reviews         Review[]
+
+  @@index([userId])
   @@index([orderNumber])
   @@index([status])
-  @@index([paymentStatus])
   @@index([createdAt])
 }
 
-// Order Item
 model OrderItem {
-  id       String @id @default(uuid())
-  price    Float
-  quantity Int
-  discount Float @default(0)
-  subtotal Float
-  
-  orderId String
-  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
+  id               String         @id @default(uuid())
+  price            Float
+  quantity         Int
+  discount         Float          @default(0)
+  subtotal         Float
+  orderId          String
+  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
   sellerMedicineId String
   sellerMedicine   SellerMedicine @relation(fields: [sellerMedicineId], references: [id])
-  
+
   @@index([orderId])
-  @@index([sellerMedicineId])
 }
 
-// Order Log
 model OrderLog {
   id        String      @id @default(uuid())
   orderId   String
   status    OrderStatus
   notes     String?
   createdAt DateTime    @default(now())
-  
-  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  
+  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
   @@index([orderId])
-  @@index([createdAt])
 }
 
-// Review - Without user relations for now
 model Review {
   id         String   @id @default(uuid())
-  rating     Int      // 1-5
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  rating     Int
   comment    String?
   isVerified Boolean  @default(false)
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
-  
-  // We'll add these back after better-auth
-  // userId String
-  // user   User   @relation(fields: [userId], references: [id])
-  
   medicineId String
   medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)
-  
-  orderId String?
-  order   Order?  @relation(fields: [orderId], references: [id])
-  
-  // Remove userId from unique constraint for now
+  orderId    String?
+  order      Order?   @relation(fields: [orderId], references: [id])
+
   @@unique([medicineId, orderId])
-  @@index([medicineId])
-  @@index([orderId])
+  @@index([userId])
   @@index([rating])
-  @@index([createdAt])
 }
 
-// Admin Log - Temporarily disabled
-// model AdminLog {
-//   id        String   @id @default(uuid())
-//   action    String
-//   entity    String
-//   entityId  String
-//   details   Json?
-//   ipAddress String?
-//   userAgent String?
-//   createdAt DateTime @default(now())
-  
-//   // We'll add adminId back after better-auth
-//   // adminId String
-//   // admin   User   @relation(fields: [adminId], references: [id])
-  
-//   @@index([entity, entityId])
-//   @@index([createdAt])
-//   @@index([action])
-// }
+model User {
+  id            String    @id
+  name          String
+  email         String
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          UserRole  @default(CUSTOMER)
+  status        UserStatus @default(ACTIVE)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+  carts         Cart[]
+  orders        Order[]
+  reviews       Review[]
+  sellerMedicines SellerMedicine[]
 
-// Address - Temporarily disabled
-// model Address {
-//   id          String   @id @default(uuid())
-//   userId      String
-//   fullName    String
-//   phone       String
-//   addressLine1 String
-//   addressLine2 String?
-//   city        String
-//   state       String
-//   postalCode  String
-//   country     String
-//   isDefault   Boolean  @default(false)
-//   createdAt   DateTime @default(now())
-//   updatedAt   DateTime @updatedAt
-  
-//   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-//   @@index([userId])
-//   @@index([isDefault])
-// }
+  @@unique([email])
+  @@map("user")
+}
 
-// NO User model for now - better-auth will handle this
+model Session {
+  id        String   @id
+  expiresAt DateTime
+  token     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([token])
+  @@index([userId])
+  @@map("session")
+}
+
+model Account {
+  id                    String   @id
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@index([userId])
+  @@map("account")
+}
+
+model Verification {
+  id         String   @id
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+  @@map("verification")
+}
