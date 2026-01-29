@@ -48,7 +48,6 @@ model Medicine {
   genericName  String?
   manufacturer String?
   description  String?
-  // dosage       String?
   isOtc        Boolean          @default(true)
   thumbnail    String?
   isActive     Boolean          @default(true)
