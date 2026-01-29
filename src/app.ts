@@ -4,6 +4,7 @@ import { auth } from "./lib/auth";
 import { toNodeHandler } from "better-auth/node";
 import { authMiddleware } from "./middlewares/auth";
 import { UserRole } from "../generated/prisma/enums";
+import { notFound } from "./middlewares/notFound";
 const app: Application = express();
 app.all("/api/auth/*splat", toNodeHandler(auth));
 
@@ -28,4 +29,5 @@ app.get("/", (req: Request, res: Response) => {
   });
 });
 
+app.use(notFound)
 export default app;
