@@ -1,4 +1,4 @@
-// modules/medicine/medicine.service.ts
+
 import { prisma } from "../../lib/prisma";
 
 interface CreateMedicinePayload {
