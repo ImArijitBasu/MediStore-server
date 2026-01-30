@@ -16,11 +16,21 @@ interface UpdateMedicinePayload {
   categoryId?: string;
 }
 
+export interface GetAllMedicinesFilters {
+  search?: string;
+  category?: string;
+  manufacturer?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  take?: number;
+  skip?: number;
+  sortBy?: "price" | "name" | "createdAt" | "rating";
+  sortOrder?: "asc" | "desc";
+}
 interface UpdateSellerMedicinePayload {
   price?: number;
   stockQuantity?: number;
 }
-
 
 const createMedicine = async (payload: CreateMedicinePayload) => {
   try {
@@ -131,13 +141,70 @@ const createMedicine = async (payload: CreateMedicinePayload) => {
 };
 
 // (Public)
-const getAllMedicines = async (take = 50, skip = 0) => {
+
+const getAllMedicines = async (filters: GetAllMedicinesFilters = {}) => {
   try {
+    const {
+      search,
+      category,
+      manufacturer,
+      minPrice,
+      maxPrice,
+      take = 50,
+      skip = 0,
+      sortBy = "createdAt",
+      sortOrder = "desc",
+    } = filters;
+
+    const where: any = {
+      isActive: true,
+    };
+
+    // Search name, brandName, genericName
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { brandName: { contains: search, mode: "insensitive" } },
+        { genericName: { contains: search, mode: "insensitive" } },
+        { description: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Category 
+    if (category) {
+      where.categoryId = category;
+    }
+
+    // Manufacturer 
+    if (manufacturer) {
+      where.manufacturer = { contains: manufacturer, mode: "insensitive" };
+    }
+
+    // Price range filter 
+    if (minPrice !== undefined || maxPrice !== undefined) {
+      where.sellers = {
+        some: {
+          isAvailable: true,
+          price: {
+            ...(minPrice !== undefined && { gte: minPrice }),
+            ...(maxPrice !== undefined && { lte: maxPrice }),
+          },
+        },
+      };
+    }
+
+    // Build ORDER BY clause
+    const orderBy: any = {};
+
+    if (sortBy !== "price") {
+      orderBy[sortBy] = sortOrder;
+    }
+
     const medicines = await prisma.medicine.findMany({
-      where: { isActive: true },
+      where,
       take,
       skip,
-      orderBy: { createdAt: "desc" },
+      orderBy: sortBy === "price" ? undefined : orderBy,
       include: {
         category: {
           select: {
@@ -148,31 +215,66 @@ const getAllMedicines = async (take = 50, skip = 0) => {
         },
         sellers: {
           where: { isAvailable: true },
-          take: 1, // Get cheapest available
+          take: 1, 
           orderBy: { price: "asc" },
           select: {
+            id: true,
             price: true,
             stockQuantity: true,
+            discount: true,
             seller: {
               select: {
                 id: true,
-                
+                name: true,
               },
             },
+          },
+        },
+        _count: {
+          select: {
+            reviews: true,
           },
         },
       },
     });
 
-    const total = await prisma.medicine.count({
-      where: { isActive: true },
-    });
+    if (sortBy === "price") {
+      medicines.sort((a, b) => {
+        const priceA = a.sellers[0]?.price || Infinity;
+        const priceB = b.sellers[0]?.price || Infinity;
+        return sortOrder === "asc" ? priceA - priceB : priceB - priceA;
+      });
+    }
+
+    const total = await prisma.medicine.count({ where });
 
     return {
       statusCode: 200,
       success: true,
       message: "Medicines fetched successfully",
-      data: { medicines, total },
+      data: {
+        medicines,
+        total,
+        pagination: {
+          page: Math.floor(skip / take) + 1,
+          limit: take,
+          total,
+          totalPages: Math.ceil(total / take),
+        },
+        filters: {
+          applied: {
+            search,
+            category,
+            manufacturer,
+            minPrice,
+            maxPrice,
+          },
+          sort: {
+            by: sortBy,
+            order: sortOrder,
+          },
+        },
+      },
     };
   } catch (error) {
     return {

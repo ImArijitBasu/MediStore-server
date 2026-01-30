@@ -9,7 +9,7 @@ const router = Router();
 router.get("/", medicineController.getAllMedicines);
 router.get("/:id", medicineController.getSingleMedicine);
 
-// SELLER ROUTES (Require authentication + seller role)
+//todo SELLER ROUTES 
 router.post(
   "/",
   authMiddleware(UserRole.SELLER),

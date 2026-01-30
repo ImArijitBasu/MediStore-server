@@ -1,8 +1,7 @@
-// modules/medicine/medicine.controller.ts
-import { Request, Response, NextFunction } from "express";
-import { medicineService } from "./medicine.service";
 
-// Create a new medicine (SELLER ONLY)
+import { Request, Response, NextFunction } from "express";
+import { GetAllMedicinesFilters, medicineService } from "./medicine.service";
+
 const createMedicine = async (
   req: Request,
   res: Response,
@@ -26,24 +25,51 @@ const createMedicine = async (
   }
 };
 
-// Get all medicines (PUBLIC)
 const getAllMedicines = async (
   req: Request,
   res: Response,
   next: NextFunction,
 ) => {
   try {
-    const take = req.query.take ? Number(req.query.take) : 50;
-    const skip = req.query.skip ? Number(req.query.skip) : 0;
+    const {
+      search,
+      category,
+      manufacturer,
+      minPrice,
+      maxPrice,
+      page = '1',
+      limit = '50',
+      sortBy = 'createdAt',
+      sortOrder = 'desc',
+    } = req.query;
 
-    const result = await medicineService.getAllMedicines(take, skip);
+    const pageNum = parseInt(page as string) || 1;
+    const limitNum = parseInt(limit as string) || 50;
+    const skip = (pageNum - 1) * limitNum;
+
+    const filters = {
+      search: search as string,
+      category: category as string,
+      manufacturer: manufacturer as string,
+      ...(minPrice !== undefined && minPrice !== null && minPrice !== ''
+        ? { minPrice: parseFloat(minPrice as string) }
+        : {}),
+      ...(maxPrice !== undefined && maxPrice !== null && maxPrice !== ''
+        ? { maxPrice: parseFloat(maxPrice as string) }
+        : {}),
+      take: limitNum,
+      skip,
+      sortBy: sortBy as 'price' | 'name' | 'createdAt' | 'rating',
+      sortOrder: sortOrder as 'asc' | 'desc',
+    } as GetAllMedicinesFilters;
+
+    const result = await medicineService.getAllMedicines(filters);
     res.status(result.statusCode).json(result);
   } catch (e) {
     next(e);
   }
 };
 
-// Get a single medicine by ID (PUBLIC)
 const getSingleMedicine = async (
   req: Request,
   res: Response,
@@ -59,7 +85,6 @@ const getSingleMedicine = async (
   }
 };
 
-// Update seller's medicine (SELLER ONLY - only their inventory)
 const updateSellerMedicine = async (
   req: Request,
   res: Response,
@@ -72,7 +97,7 @@ const updateSellerMedicine = async (
     if (!sellerId || req.user?.role !== "SELLER") {
       return res.status(403).json({
         success: false,
-        error: "Only sellers can update medicines",
+        error: "sellers can only update medicines",
       });
     }
 
@@ -88,7 +113,6 @@ const updateSellerMedicine = async (
   }
 };
 
-// Remove medicine from seller's inventory (SELLER ONLY)
 const deleteSellerMedicine = async (
   req: Request,
   res: Response,
@@ -116,7 +140,6 @@ const deleteSellerMedicine = async (
   }
 };
 
-// Get seller's medicines (SELLER ONLY)
 const getSellerMedicines = async (
   req: Request,
   res: Response,
