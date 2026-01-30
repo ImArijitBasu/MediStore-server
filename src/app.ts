@@ -1,14 +1,13 @@
+import { orderRouter } from './modules/order/order.router';
 import express, { Application, Request, Response } from "express";
 import cors from "cors";
 import { auth } from "./lib/auth";
 import { toNodeHandler } from "better-auth/node";
-import { authMiddleware } from "./middlewares/auth";
-import { UserRole } from "../generated/prisma/enums";
 import { notFound } from "./middlewares/notFound";
 import { medicineRouter } from "./modules/medicine/medicine.router";
 import { categoryRouter } from "./modules/category/category.router";
+import { adminRouter } from "./modules/admin/admin.router";
 const app: Application = express();
-app.all("/api/auth/*splat", toNodeHandler(auth));
 
 app.use(
   cors({
@@ -18,13 +17,17 @@ app.use(
 );
 app.use(express.json());
 
+app.all("/api/auth/*splat", toNodeHandler(auth));
+
 //test route protected by auth middleware
 // app.get("/admin", authMiddleware(UserRole.ADMIN), (req, res) => {
 //   res.send("Admin access");
 // });
 
-app.use("/medicines", medicineRouter)
-app.use("/categories", categoryRouter)
+app.use("/api/medicines", medicineRouter)
+app.use("/api/categories", categoryRouter)
+app.use("/api/admin", adminRouter)
+app.use("/api/orders", orderRouter)
 
 app.get("/", (req: Request, res: Response) => {
   res.status(200).send({
