@@ -1,7 +1,6 @@
 import { Request, Response, NextFunction } from "express";
 import { categoryService } from "./category.service";
 
-
 const createCategory = async (
   req: Request,
   res: Response,
@@ -78,9 +77,28 @@ const deleteSingleCategory = async (
   }
 };
 
+const updateCategory = async (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+) => {
+  try {
+    const { id } = req.params;
+    const result = await categoryService.updateCategory(id as string, req.body);
+
+    res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 export const categoryController = {
   createCategory,
   getAllCategories,
   getSingleCategory,
   deleteSingleCategory,
+  updateCategory,
 };

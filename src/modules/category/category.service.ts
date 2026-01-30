@@ -2,25 +2,45 @@ import { prisma } from "../../lib/prisma";
 
 interface CreateCategoryPayload {
   name: string;
-  slug: string;
+  description?: string;
+  image?: string;
 }
+
+interface UpdateCategoryPayload {
+  name?: string;
+  description?: string;
+  image?: string;
+  isActive?: boolean;
+}
+const generateSlug = (text: string): string => {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^\w\s-]/g, "")
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+};
+
 //todo done
 const createCategory = async (payload: CreateCategoryPayload) => {
   try {
-    const { name, slug } = payload;
+    const { name, description, image } = payload;
 
-    if (!name?.trim() || !slug?.trim()) {
+    if (!name?.trim()) {
       return {
         success: false,
         statusCode: 400,
-        message: "Name and slug are required",
+        message: "Category name is required",
         data: null,
       };
     }
 
+    // slugs > name
+    const slug = generateSlug(name.trim());
+
     const existingCategory = await prisma.medicineCategory.findFirst({
       where: {
-        OR: [{ name }, { slug }],
+        OR: [{ name: name.trim() }, { slug: slug }],
       },
     });
 
@@ -28,13 +48,21 @@ const createCategory = async (payload: CreateCategoryPayload) => {
       return {
         success: false,
         statusCode: 409,
-        message: "Category already exists with same name or slug",
+        message:
+          existingCategory.name === name.trim()
+            ? "Category with this name already exists"
+            : "Category with similar name already exists",
         data: null,
       };
     }
 
     const category = await prisma.medicineCategory.create({
-      data: { name: name.trim(), slug: slug.trim() },
+      data: {
+        name: name.trim(),
+        slug: slug,
+        description: description?.trim() || null,
+        image: image || null,
+      },
     });
 
     return {
@@ -53,14 +81,13 @@ const createCategory = async (payload: CreateCategoryPayload) => {
     };
   }
 };
-
 //todo done
 const getAllCategories = async () => {
   const categories = await prisma.medicineCategory.findMany({
-    orderBy: { createdAt: "desc" },
+    orderBy: { createdAt: "asc" },
     include: {
       _count: {
-        select: { medicines: true }, // count medicines in each category
+        select: { medicines: true },
       },
     },
   });
@@ -77,7 +104,7 @@ const getAllCategories = async () => {
     success: true,
     statusCode: 200,
     message: "Categories fetched successfully",
-    data: {totalCategories, categories: formattedCategories },
+    data: { totalCategories, categories: formattedCategories },
   };
 };
 //todo done
@@ -117,7 +144,6 @@ const getSingleCategory = async (id: string) => {
 //todo done
 const deleteSingleCategory = async (id: string) => {
   try {
-    // check if category has medicines
     const medicinesCount = await prisma.medicine.count({
       where: {
         categoryId: id,
@@ -133,7 +159,6 @@ const deleteSingleCategory = async (id: string) => {
       };
     }
 
-    // If no medicines, delete the category
     const deletedCategory = await prisma.medicineCategory.delete({
       where: {
         id,
@@ -147,7 +172,6 @@ const deleteSingleCategory = async (id: string) => {
       statusCode: 200,
     };
   } catch (error) {
-    // Handle other errors
     let message = "Failed to delete category";
     let statusCode = 500;
 
@@ -170,9 +194,96 @@ const deleteSingleCategory = async (id: string) => {
   }
 };
 
+const updateCategory = async (id: string, payload: UpdateCategoryPayload) => {
+  try {
+    if (!id) {
+      return {
+        success: false,
+        statusCode: 400,
+        message: "Category ID is required",
+        data: null,
+      };
+    }
+
+    const existingCategory = await prisma.medicineCategory.findUnique({
+      where: { id },
+    });
+
+    if (!existingCategory) {
+      return {
+        success: false,
+        statusCode: 404,
+        message: "Category not found",
+        data: null,
+      };
+    }
+    const updateData: any = {};
+
+    if (payload.name !== undefined) {
+      const newName = payload.name.trim();
+      updateData.name = newName;
+
+      const newSlug = generateSlug(newName);
+      updateData.slug = newSlug;
+
+      const duplicateCategory = await prisma.medicineCategory.findFirst({
+        where: {
+          OR: [{ name: newName }, { slug: newSlug }],
+          NOT: { id },
+        },
+      });
+
+      if (duplicateCategory) {
+        return {
+          success: false,
+          statusCode: 409,
+          message:
+            duplicateCategory.name === newName
+              ? "Another category already exists with this name"
+              : "Another category already exists with similar name",
+          data: null,
+        };
+      }
+    }
+
+    if (payload.description !== undefined) {
+      updateData.description = payload.description.trim();
+    }
+
+    if (payload.image !== undefined) {
+      updateData.image = payload.image;
+    }
+
+    if (payload.isActive !== undefined) {
+      updateData.isActive = payload.isActive;
+    }
+
+    const updatedCategory = await prisma.medicineCategory.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return {
+      success: true,
+      statusCode: 200,
+      message: "Category updated successfully",
+      data: updatedCategory,
+    };
+  } catch (error) {
+    console.error("Error updating category:", error);
+    return {
+      success: false,
+      statusCode: 500,
+      message: "Failed to update category",
+      data: null,
+    };
+  }
+};
+
 export const categoryService = {
   createCategory,
   getAllCategories,
   getSingleCategory,
   deleteSingleCategory,
+  updateCategory,
 };
