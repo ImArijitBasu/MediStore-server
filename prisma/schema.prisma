@@ -107,7 +107,7 @@ model CartItem {
   cartId           String
   cart             Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)
   sellerMedicineId String
-  sellerMedicine   SellerMedicine @relation(fields: [sellerMedicineId], references: [id])
+  sellerMedicine   SellerMedicine @relation(fields: [sellerMedicineId], references: [id],onDelete: Cascade)
 
   @@unique([cartId, sellerMedicineId])
 }

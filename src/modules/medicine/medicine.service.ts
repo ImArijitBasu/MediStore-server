@@ -421,24 +421,15 @@ const updateSellerMedicine = async (
 //Remove from seller's inventory
 const deleteSellerMedicine = async (medicineId: string, sellerId: string) => {
   try {
-    // Check if seller has this medicine
     const sellerMedicine = await prisma.sellerMedicine.findFirst({
-      where: {
-        medicineId,
-        sellerId,
-      },
+      where: { medicineId, sellerId },
     });
 
     if (!sellerMedicine) {
-      return {
-        statusCode: 404,
-        success: false,
-        message: "Medicine not found in your inventory",
-        data: null,
-      };
+      return { statusCode: 404, success: false, message: "Listing not found" };
     }
 
-    // Remove from seller's inventory
+    // Attempt permanent deletion
     await prisma.sellerMedicine.delete({
       where: { id: sellerMedicine.id },
     });
@@ -446,16 +437,23 @@ const deleteSellerMedicine = async (medicineId: string, sellerId: string) => {
     return {
       statusCode: 200,
       success: true,
-      message: "Medicine removed from your inventory",
-      data: null,
+      message: "Medicine permanently removed from your inventory",
     };
-  } catch (error) {
+  } catch (error: any) {
+    //  Foreign Key Constraint violation
+    if (error.code === "P2003") {
+      return {
+        statusCode: 400,
+        success: false,
+        message:
+          "Cannot delete: This medicine is linked to existing orders. Try hiding it instead.",
+      };
+    }
+
     return {
       statusCode: 500,
       success: false,
-      message:
-        error instanceof Error ? error.message : "Failed to delete medicine",
-      data: null,
+      message: error.message || "Failed to delete medicine",
     };
   }
 };

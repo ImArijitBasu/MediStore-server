@@ -17,11 +17,13 @@ export const auth = betterAuth({
         type: "string",
         default: "CUSTOMER",
         required: false,
+        input: true
       },
       status: {
         type: "string",
         default: "ACTIVE",
         required: false,
+        input: false
       }
     },
   },
