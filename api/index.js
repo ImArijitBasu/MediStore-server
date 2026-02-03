@@ -1036,7 +1036,8 @@ var getAllMedicines = async (filters = {}) => {
         { name: { contains: search, mode: "insensitive" } },
         { brandName: { contains: search, mode: "insensitive" } },
         { genericName: { contains: search, mode: "insensitive" } },
-        { description: { contains: search, mode: "insensitive" } }
+        { description: { contains: search, mode: "insensitive" } },
+        { category: { name: { contains: search, mode: "insensitive" } } }
       ];
     }
     if (category) {

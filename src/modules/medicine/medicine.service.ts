@@ -160,13 +160,13 @@ const getAllMedicines = async (filters: GetAllMedicinesFilters = {}) => {
       isActive: true,
     };
 
-    // Search name, brandName, genericName
     if (search) {
       where.OR = [
         { name: { contains: search, mode: "insensitive" } },
         { brandName: { contains: search, mode: "insensitive" } },
         { genericName: { contains: search, mode: "insensitive" } },
         { description: { contains: search, mode: "insensitive" } },
+        { category: { name: { contains: search, mode: "insensitive" } } },
       ];
     }
 
