@@ -2,6 +2,54 @@ import { OrderStatus, UserRole } from "../../../generated/prisma/client";
 import generateOrderNumber from "../../helpers/generateOrderNumber";
 import { prisma } from "../../lib/prisma";
 
+// orderService.ts
+
+const getAllOrders = async () => {
+  try {
+    const orders = await prisma.order.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        items: {
+          include: {
+            sellerMedicine: {
+              include: {
+                medicine: true,
+                seller: {
+                  select: { name: true }
+                }
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return {
+      statusCode: 200,
+      success: true,
+      message: "All platform orders retrieved successfully",
+      data: orders,
+    };
+  } catch (error) {
+    console.error("Get all orders error:", error);
+    return {
+      statusCode: 500,
+      success: false,
+      message: "Failed to retrieve all orders",
+      data: null,
+    };
+  }
+};
+
+
+
 const createOrder = async (userId: string, data: any) => {
   try {
     const { items, shippingAddress, notes } = data;
@@ -539,6 +587,7 @@ const trackOrder = async (
 };
 
 export const orderService = {
+  getAllOrders,
   createOrder,
   getUserOrders,
   getOrderDetails,

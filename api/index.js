@@ -90,6 +90,48 @@ var adapter = new PrismaPg({ connectionString });
 var prisma = new PrismaClient({ adapter });
 
 // src/modules/order/order.service.ts
+var getAllOrders = async () => {
+  try {
+    const orders = await prisma.order.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true
+          }
+        },
+        items: {
+          include: {
+            sellerMedicine: {
+              include: {
+                medicine: true,
+                seller: {
+                  select: { name: true }
+                }
+              }
+            }
+          }
+        }
+      }
+    });
+    return {
+      statusCode: 200,
+      success: true,
+      message: "All platform orders retrieved successfully",
+      data: orders
+    };
+  } catch (error) {
+    console.error("Get all orders error:", error);
+    return {
+      statusCode: 500,
+      success: false,
+      message: "Failed to retrieve all orders",
+      data: null
+    };
+  }
+};
 var createOrder = async (userId, data) => {
   try {
     const { items, shippingAddress, notes } = data;
@@ -567,6 +609,7 @@ var trackOrder = async (orderNumber, userId, userRole) => {
   }
 };
 var orderService = {
+  getAllOrders,
   createOrder,
   getUserOrders,
   getOrderDetails,
@@ -577,6 +620,18 @@ var orderService = {
 };
 
 // src/modules/order/order.controller.ts
+var getAllOrders2 = async (req, res, next) => {
+  try {
+    const result = await orderService.getAllOrders();
+    res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      data: result.data
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 var createOrder2 = async (req, res, next) => {
   try {
     if (!req.user) {
@@ -727,6 +782,7 @@ var trackOrder2 = async (req, res, next) => {
   }
 };
 var orderController = {
+  getAllOrders: getAllOrders2,
   createOrder: createOrder2,
   getUserOrders: getUserOrders2,
   getOrderDetails: getOrderDetails2,
@@ -809,6 +865,11 @@ var auth_default = authMiddleware;
 
 // src/modules/order/order.router.ts
 var router = Router();
+router.get(
+  "/admin/all-orders",
+  authMiddleware(UserRole.ADMIN),
+  orderController.getAllOrders
+);
 router.post(
   "/",
   authMiddleware(UserRole.CUSTOMER),

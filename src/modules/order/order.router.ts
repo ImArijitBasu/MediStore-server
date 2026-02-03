@@ -4,7 +4,12 @@ import { authMiddleware } from "../../middlewares/auth";
 import { UserRole } from "../../../generated/prisma/client";
 
 const router = Router();
-
+//admin
+router.get(
+  "/admin/all-orders",
+  authMiddleware(UserRole.ADMIN),
+  orderController.getAllOrders,
+);
 // customer
 router.post(
   "/",

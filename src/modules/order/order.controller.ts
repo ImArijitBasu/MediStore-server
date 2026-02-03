@@ -1,6 +1,23 @@
 import { Request, Response, NextFunction } from "express";
 import { orderService } from "./order.service";
 import { OrderStatus } from "../../../generated/prisma/client";
+// orderController.ts
+
+const getAllOrders = async (req: Request, res: Response, next: NextFunction) => {
+  try {
+    // Only Admin can access this, protected by route middleware
+    const result = await orderService.getAllOrders();
+    
+    res.status(result.statusCode).json({
+      success: result.success,
+      message: result.message,
+      data: result.data,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 
 const createOrder = async (req: Request, res: Response, next: NextFunction) => {
   try {
@@ -184,6 +201,7 @@ const trackOrder = async (req: Request, res: Response, next: NextFunction) => {
 };
 
 export const orderController = {
+  getAllOrders,
   createOrder,
   getUserOrders,
   getOrderDetails,
