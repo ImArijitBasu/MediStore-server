@@ -9,6 +9,7 @@ import { categoryRouter } from "./modules/category/category.router";
 import { adminRouter } from "./modules/admin/admin.router";
 import { cartRouter } from './modules/cart/cart.router';
 import { reviewRouter } from './modules/review/review.router';
+import { userRouter } from './modules/user/user.router';
 const app: Application = express();
 
 const allowedOrigins = [
@@ -17,7 +18,11 @@ const allowedOrigins = [
 
 app.use(
   cors({
-    origin: "https://medistore-xi.vercel.app", // Use your actual frontend URL
+    origin: [
+      "https://medistore-xi.vercel.app", 
+      "http://localhost:3000",
+      process.env.APP_URL || ""
+    ].filter(Boolean),
     credentials: true,
   }),
 );
@@ -61,6 +66,7 @@ app.use("/api/admin", adminRouter)
 app.use("/api/orders", orderRouter)
 app.use("/api/cart", cartRouter)
 app.use("/api/reviews", reviewRouter)
+app.use("/api/user", userRouter)
 
 app.get("/", (req: Request, res: Response) => {
   res.status(200).send({

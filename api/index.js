@@ -12,14 +12,14 @@ var config = {
   "clientVersion": "7.3.0",
   "engineVersion": "9d6ad21cbbceab97458517b147a6a09ff43aa735",
   "activeProvider": "postgresql",
-  "inlineSchema": 'generator client {\n  provider = "prisma-client"\n  output   = "../generated/prisma"\n}\n\ndatasource db {\n  provider = "postgresql"\n}\n\nenum UserRole {\n  CUSTOMER\n  SELLER\n  ADMIN\n}\n\nenum UserStatus {\n  ACTIVE\n  BANNED\n}\n\nenum OrderStatus {\n  PROCESSING\n  SHIPPED\n  DELIVERED\n  CANCELLED\n}\n\nmodel MedicineCategory {\n  id          String     @id @default(uuid())\n  name        String\n  slug        String     @unique\n  description String?\n  image       String?\n  isActive    Boolean    @default(true)\n  createdAt   DateTime   @default(now())\n  updatedAt   DateTime   @updatedAt\n  medicines   Medicine[]\n\n  @@index([slug])\n  @@index([name])\n}\n\nmodel Medicine {\n  id           String           @id @default(uuid())\n  name         String\n  slug         String           @unique\n  brandName    String\n  genericName  String?\n  manufacturer String?\n  description  String?\n  isOtc        Boolean          @default(true)\n  thumbnail    String?\n  isActive     Boolean          @default(true)\n  rating       Float            @default(0)\n  totalRatings Int              @default(0)\n  createdAt    DateTime         @default(now())\n  updatedAt    DateTime         @updatedAt\n  categoryId   String\n  category     MedicineCategory @relation(fields: [categoryId], references: [id])\n  sellers      SellerMedicine[]\n  reviews      Review[]\n\n  @@index([name])\n  @@index([slug])\n  @@index([categoryId])\n  @@index([isActive])\n}\n\nmodel SellerMedicine {\n  id            String      @id @default(uuid())\n  price         Float\n  originalPrice Float?\n  stockQuantity Int         @default(0)\n  expiryDate    DateTime?\n  batchNumber   String?\n  isAvailable   Boolean     @default(true)\n  discount      Float       @default(0)\n  createdAt     DateTime    @default(now())\n  updatedAt     DateTime    @updatedAt\n  medicineId    String\n  medicine      Medicine    @relation(fields: [medicineId], references: [id], onDelete: Cascade)\n  sellerId      String\n  seller        User        @relation(fields: [sellerId], references: [id])\n  cartItems     CartItem[]\n  orderItems    OrderItem[]\n\n  @@unique([medicineId, batchNumber, sellerId])\n  @@index([medicineId])\n  @@index([sellerId])\n  @@index([isAvailable])\n}\n\nmodel Cart {\n  id        String     @id @default(uuid())\n  userId    String\n  user      User       @relation(fields: [userId], references: [id])\n  createdAt DateTime   @default(now())\n  updatedAt DateTime   @updatedAt\n  items     CartItem[]\n\n  @@index([userId])\n}\n\nmodel CartItem {\n  id               String         @id @default(uuid())\n  quantity         Int            @default(1)\n  cartId           String\n  cart             Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)\n  sellerMedicineId String\n  sellerMedicine   SellerMedicine @relation(fields: [sellerMedicineId], references: [id], onDelete: Cascade)\n\n  @@unique([cartId, sellerMedicineId])\n}\n\nmodel Order {\n  id              String      @id @default(uuid())\n  orderNumber     String      @unique\n  userId          String\n  user            User        @relation(fields: [userId], references: [id])\n  totalAmount     Float\n  discount        Float       @default(0)\n  finalAmount     Float\n  status          OrderStatus @default(PROCESSING)\n  shippingAddress String\n  paymentMethod   String      @default("COD")\n  notes           String?\n  createdAt       DateTime    @default(now())\n  updatedAt       DateTime    @updatedAt\n  items           OrderItem[]\n  orderLogs       OrderLog[]\n  reviews         Review[]\n\n  @@index([userId])\n  @@index([orderNumber])\n  @@index([status])\n  @@index([createdAt])\n}\n\nmodel OrderItem {\n  id               String         @id @default(uuid())\n  price            Float\n  quantity         Int\n  discount         Float          @default(0)\n  subtotal         Float\n  orderId          String\n  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)\n  sellerMedicineId String\n  sellerMedicine   SellerMedicine @relation(fields: [sellerMedicineId], references: [id])\n\n  @@index([orderId])\n}\n\nmodel OrderLog {\n  id        String      @id @default(uuid())\n  orderId   String\n  status    OrderStatus\n  notes     String?\n  createdAt DateTime    @default(now())\n  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)\n\n  @@index([orderId])\n}\n\nmodel Review {\n  id         String   @id @default(uuid())\n  userId     String\n  user       User     @relation(fields: [userId], references: [id])\n  rating     Int\n  comment    String?\n  isVerified Boolean  @default(false)\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n  medicineId String\n  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)\n  orderId    String?\n  order      Order?   @relation(fields: [orderId], references: [id])\n\n  @@unique([medicineId, orderId])\n  @@index([userId])\n  @@index([rating])\n}\n\nmodel User {\n  id              String           @id\n  name            String\n  email           String\n  emailVerified   Boolean          @default(false)\n  image           String?\n  role            UserRole         @default(CUSTOMER)\n  status          UserStatus       @default(ACTIVE)\n  createdAt       DateTime         @default(now())\n  updatedAt       DateTime         @updatedAt\n  sessions        Session[]\n  accounts        Account[]\n  carts           Cart[]\n  orders          Order[]\n  reviews         Review[]\n  sellerMedicines SellerMedicine[]\n\n  @@unique([email])\n  @@map("user")\n}\n\nmodel Session {\n  id        String   @id\n  expiresAt DateTime\n  token     String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  ipAddress String?\n  userAgent String?\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([token])\n  @@index([userId])\n  @@map("session")\n}\n\nmodel Account {\n  id                    String    @id\n  accountId             String\n  providerId            String\n  userId                String\n  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)\n  accessToken           String?\n  refreshToken          String?\n  idToken               String?\n  accessTokenExpiresAt  DateTime?\n  refreshTokenExpiresAt DateTime?\n  scope                 String?\n  password              String?\n  createdAt             DateTime  @default(now())\n  updatedAt             DateTime  @updatedAt\n\n  @@index([userId])\n  @@map("account")\n}\n\nmodel Verification {\n  id         String   @id\n  identifier String\n  value      String\n  expiresAt  DateTime\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n\n  @@index([identifier])\n  @@map("verification")\n}\n',
+  "inlineSchema": 'generator client {\n  provider = "prisma-client"\n  output   = "../generated/prisma"\n}\n\ndatasource db {\n  provider = "postgresql"\n}\n\nenum UserRole {\n  CUSTOMER\n  SELLER\n  ADMIN\n}\n\nenum UserStatus {\n  ACTIVE\n  BANNED\n}\n\nenum OrderStatus {\n  PROCESSING\n  SHIPPED\n  DELIVERED\n  CANCELLED\n}\n\nenum PaymentStatus {\n  PENDING\n  PAID\n  FAILED\n}\n\nmodel MedicineCategory {\n  id          String     @id @default(uuid())\n  name        String\n  slug        String     @unique\n  description String?\n  image       String?\n  isActive    Boolean    @default(true)\n  createdAt   DateTime   @default(now())\n  updatedAt   DateTime   @updatedAt\n  medicines   Medicine[]\n\n  @@index([slug])\n  @@index([name])\n}\n\nmodel Medicine {\n  id           String           @id @default(uuid())\n  name         String\n  slug         String           @unique\n  brandName    String\n  genericName  String?\n  manufacturer String?\n  description  String?\n  isOtc        Boolean          @default(true)\n  thumbnail    String?\n  isActive     Boolean          @default(true)\n  rating       Float            @default(0)\n  totalRatings Int              @default(0)\n  createdAt    DateTime         @default(now())\n  updatedAt    DateTime         @updatedAt\n  categoryId   String\n  category     MedicineCategory @relation(fields: [categoryId], references: [id])\n  sellers      SellerMedicine[]\n  reviews      Review[]\n\n  @@index([name])\n  @@index([slug])\n  @@index([categoryId])\n  @@index([isActive])\n}\n\nmodel SellerMedicine {\n  id            String      @id @default(uuid())\n  price         Float\n  originalPrice Float?\n  stockQuantity Int         @default(0)\n  expiryDate    DateTime?\n  batchNumber   String?\n  isAvailable   Boolean     @default(true)\n  discount      Float       @default(0)\n  createdAt     DateTime    @default(now())\n  updatedAt     DateTime    @updatedAt\n  medicineId    String\n  medicine      Medicine    @relation(fields: [medicineId], references: [id], onDelete: Cascade)\n  sellerId      String\n  seller        User        @relation(fields: [sellerId], references: [id])\n  cartItems     CartItem[]\n  orderItems    OrderItem[]\n\n  @@unique([medicineId, batchNumber, sellerId])\n  @@index([medicineId])\n  @@index([sellerId])\n  @@index([isAvailable])\n}\n\nmodel Cart {\n  id        String     @id @default(uuid())\n  userId    String\n  user      User       @relation(fields: [userId], references: [id])\n  createdAt DateTime   @default(now())\n  updatedAt DateTime   @updatedAt\n  items     CartItem[]\n\n  @@index([userId])\n}\n\nmodel CartItem {\n  id               String         @id @default(uuid())\n  quantity         Int            @default(1)\n  cartId           String\n  cart             Cart           @relation(fields: [cartId], references: [id], onDelete: Cascade)\n  sellerMedicineId String\n  sellerMedicine   SellerMedicine @relation(fields: [sellerMedicineId], references: [id], onDelete: Cascade)\n\n  @@unique([cartId, sellerMedicineId])\n}\n\nmodel Order {\n  id              String      @id @default(uuid())\n  orderNumber     String      @unique\n  userId          String\n  user            User        @relation(fields: [userId], references: [id])\n  totalAmount     Float\n  discount        Float       @default(0)\n  finalAmount     Float\n  status          OrderStatus @default(PROCESSING)\n  shippingAddress String\n  paymentMethod   String      @default("COD")\n  notes           String?\n  createdAt       DateTime    @default(now())\n  updatedAt       DateTime    @updatedAt\n  payment         Payment?\n  items           OrderItem[]\n  orderLogs       OrderLog[]\n  reviews         Review[]\n\n  @@index([userId])\n  @@index([orderNumber])\n  @@index([status])\n  @@index([createdAt])\n}\n\nmodel OrderItem {\n  id               String         @id @default(uuid())\n  price            Float\n  quantity         Int\n  discount         Float          @default(0)\n  subtotal         Float\n  orderId          String\n  order            Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)\n  sellerMedicineId String\n  sellerMedicine   SellerMedicine @relation(fields: [sellerMedicineId], references: [id])\n\n  @@index([orderId])\n}\n\nmodel OrderLog {\n  id        String      @id @default(uuid())\n  orderId   String\n  status    OrderStatus\n  notes     String?\n  createdAt DateTime    @default(now())\n  order     Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)\n\n  @@index([orderId])\n}\n\nmodel Review {\n  id         String   @id @default(uuid())\n  userId     String\n  user       User     @relation(fields: [userId], references: [id])\n  rating     Int\n  comment    String?\n  isVerified Boolean  @default(false)\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n  medicineId String\n  medicine   Medicine @relation(fields: [medicineId], references: [id], onDelete: Cascade)\n  orderId    String?\n  order      Order?   @relation(fields: [orderId], references: [id])\n\n  @@unique([medicineId, orderId])\n  @@index([userId])\n  @@index([rating])\n}\n\nmodel User {\n  id              String           @id\n  name            String\n  email           String\n  emailVerified   Boolean          @default(false)\n  image           String?\n  role            UserRole         @default(CUSTOMER)\n  status          UserStatus       @default(ACTIVE)\n  createdAt       DateTime         @default(now())\n  updatedAt       DateTime         @updatedAt\n  sessions        Session[]\n  accounts        Account[]\n  carts           Cart[]\n  orders          Order[]\n  reviews         Review[]\n  sellerMedicines SellerMedicine[]\n\n  @@unique([email])\n  @@map("user")\n}\n\nmodel Session {\n  id        String   @id\n  expiresAt DateTime\n  token     String\n  createdAt DateTime @default(now())\n  updatedAt DateTime @updatedAt\n  ipAddress String?\n  userAgent String?\n  userId    String\n  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)\n\n  @@unique([token])\n  @@index([userId])\n  @@map("session")\n}\n\nmodel Account {\n  id                    String    @id\n  accountId             String\n  providerId            String\n  userId                String\n  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)\n  accessToken           String?\n  refreshToken          String?\n  idToken               String?\n  accessTokenExpiresAt  DateTime?\n  refreshTokenExpiresAt DateTime?\n  scope                 String?\n  password              String?\n  createdAt             DateTime  @default(now())\n  updatedAt             DateTime  @updatedAt\n\n  @@index([userId])\n  @@map("account")\n}\n\nmodel Verification {\n  id         String   @id\n  identifier String\n  value      String\n  expiresAt  DateTime\n  createdAt  DateTime @default(now())\n  updatedAt  DateTime @updatedAt\n\n  @@index([identifier])\n  @@map("verification")\n}\n\nmodel Payment {\n  id            String        @id @default(uuid())\n  amount        Float\n  paymentMethod String        @default("COD")\n  status        PaymentStatus @default(PAID)\n  orderId       String        @unique\n  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)\n  createdAt     DateTime      @default(now())\n  updatedAt     DateTime      @updatedAt\n\n  @@index([orderId])\n  @@index([status])\n}\n',
   "runtimeDataModel": {
     "models": {},
     "enums": {},
     "types": {}
   }
 };
-config.runtimeDataModel = JSON.parse('{"models":{"MedicineCategory":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"slug","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"image","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"medicines","kind":"object","type":"Medicine","relationName":"MedicineToMedicineCategory"}],"dbName":null},"Medicine":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"slug","kind":"scalar","type":"String"},{"name":"brandName","kind":"scalar","type":"String"},{"name":"genericName","kind":"scalar","type":"String"},{"name":"manufacturer","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"isOtc","kind":"scalar","type":"Boolean"},{"name":"thumbnail","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean"},{"name":"rating","kind":"scalar","type":"Float"},{"name":"totalRatings","kind":"scalar","type":"Int"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"categoryId","kind":"scalar","type":"String"},{"name":"category","kind":"object","type":"MedicineCategory","relationName":"MedicineToMedicineCategory"},{"name":"sellers","kind":"object","type":"SellerMedicine","relationName":"MedicineToSellerMedicine"},{"name":"reviews","kind":"object","type":"Review","relationName":"MedicineToReview"}],"dbName":null},"SellerMedicine":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"price","kind":"scalar","type":"Float"},{"name":"originalPrice","kind":"scalar","type":"Float"},{"name":"stockQuantity","kind":"scalar","type":"Int"},{"name":"expiryDate","kind":"scalar","type":"DateTime"},{"name":"batchNumber","kind":"scalar","type":"String"},{"name":"isAvailable","kind":"scalar","type":"Boolean"},{"name":"discount","kind":"scalar","type":"Float"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"medicineId","kind":"scalar","type":"String"},{"name":"medicine","kind":"object","type":"Medicine","relationName":"MedicineToSellerMedicine"},{"name":"sellerId","kind":"scalar","type":"String"},{"name":"seller","kind":"object","type":"User","relationName":"SellerMedicineToUser"},{"name":"cartItems","kind":"object","type":"CartItem","relationName":"CartItemToSellerMedicine"},{"name":"orderItems","kind":"object","type":"OrderItem","relationName":"OrderItemToSellerMedicine"}],"dbName":null},"Cart":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"CartToUser"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"items","kind":"object","type":"CartItem","relationName":"CartToCartItem"}],"dbName":null},"CartItem":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"quantity","kind":"scalar","type":"Int"},{"name":"cartId","kind":"scalar","type":"String"},{"name":"cart","kind":"object","type":"Cart","relationName":"CartToCartItem"},{"name":"sellerMedicineId","kind":"scalar","type":"String"},{"name":"sellerMedicine","kind":"object","type":"SellerMedicine","relationName":"CartItemToSellerMedicine"}],"dbName":null},"Order":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"orderNumber","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"OrderToUser"},{"name":"totalAmount","kind":"scalar","type":"Float"},{"name":"discount","kind":"scalar","type":"Float"},{"name":"finalAmount","kind":"scalar","type":"Float"},{"name":"status","kind":"enum","type":"OrderStatus"},{"name":"shippingAddress","kind":"scalar","type":"String"},{"name":"paymentMethod","kind":"scalar","type":"String"},{"name":"notes","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"items","kind":"object","type":"OrderItem","relationName":"OrderToOrderItem"},{"name":"orderLogs","kind":"object","type":"OrderLog","relationName":"OrderToOrderLog"},{"name":"reviews","kind":"object","type":"Review","relationName":"OrderToReview"}],"dbName":null},"OrderItem":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"price","kind":"scalar","type":"Float"},{"name":"quantity","kind":"scalar","type":"Int"},{"name":"discount","kind":"scalar","type":"Float"},{"name":"subtotal","kind":"scalar","type":"Float"},{"name":"orderId","kind":"scalar","type":"String"},{"name":"order","kind":"object","type":"Order","relationName":"OrderToOrderItem"},{"name":"sellerMedicineId","kind":"scalar","type":"String"},{"name":"sellerMedicine","kind":"object","type":"SellerMedicine","relationName":"OrderItemToSellerMedicine"}],"dbName":null},"OrderLog":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"orderId","kind":"scalar","type":"String"},{"name":"status","kind":"enum","type":"OrderStatus"},{"name":"notes","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"order","kind":"object","type":"Order","relationName":"OrderToOrderLog"}],"dbName":null},"Review":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"ReviewToUser"},{"name":"rating","kind":"scalar","type":"Int"},{"name":"comment","kind":"scalar","type":"String"},{"name":"isVerified","kind":"scalar","type":"Boolean"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"medicineId","kind":"scalar","type":"String"},{"name":"medicine","kind":"object","type":"Medicine","relationName":"MedicineToReview"},{"name":"orderId","kind":"scalar","type":"String"},{"name":"order","kind":"object","type":"Order","relationName":"OrderToReview"}],"dbName":null},"User":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"emailVerified","kind":"scalar","type":"Boolean"},{"name":"image","kind":"scalar","type":"String"},{"name":"role","kind":"enum","type":"UserRole"},{"name":"status","kind":"enum","type":"UserStatus"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"sessions","kind":"object","type":"Session","relationName":"SessionToUser"},{"name":"accounts","kind":"object","type":"Account","relationName":"AccountToUser"},{"name":"carts","kind":"object","type":"Cart","relationName":"CartToUser"},{"name":"orders","kind":"object","type":"Order","relationName":"OrderToUser"},{"name":"reviews","kind":"object","type":"Review","relationName":"ReviewToUser"},{"name":"sellerMedicines","kind":"object","type":"SellerMedicine","relationName":"SellerMedicineToUser"}],"dbName":"user"},"Session":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"token","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"ipAddress","kind":"scalar","type":"String"},{"name":"userAgent","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"SessionToUser"}],"dbName":"session"},"Account":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"accountId","kind":"scalar","type":"String"},{"name":"providerId","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"AccountToUser"},{"name":"accessToken","kind":"scalar","type":"String"},{"name":"refreshToken","kind":"scalar","type":"String"},{"name":"idToken","kind":"scalar","type":"String"},{"name":"accessTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"refreshTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"scope","kind":"scalar","type":"String"},{"name":"password","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"}],"dbName":"account"},"Verification":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"identifier","kind":"scalar","type":"String"},{"name":"value","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"}],"dbName":"verification"}},"enums":{},"types":{}}');
+config.runtimeDataModel = JSON.parse('{"models":{"MedicineCategory":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"slug","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"image","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"medicines","kind":"object","type":"Medicine","relationName":"MedicineToMedicineCategory"}],"dbName":null},"Medicine":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"slug","kind":"scalar","type":"String"},{"name":"brandName","kind":"scalar","type":"String"},{"name":"genericName","kind":"scalar","type":"String"},{"name":"manufacturer","kind":"scalar","type":"String"},{"name":"description","kind":"scalar","type":"String"},{"name":"isOtc","kind":"scalar","type":"Boolean"},{"name":"thumbnail","kind":"scalar","type":"String"},{"name":"isActive","kind":"scalar","type":"Boolean"},{"name":"rating","kind":"scalar","type":"Float"},{"name":"totalRatings","kind":"scalar","type":"Int"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"categoryId","kind":"scalar","type":"String"},{"name":"category","kind":"object","type":"MedicineCategory","relationName":"MedicineToMedicineCategory"},{"name":"sellers","kind":"object","type":"SellerMedicine","relationName":"MedicineToSellerMedicine"},{"name":"reviews","kind":"object","type":"Review","relationName":"MedicineToReview"}],"dbName":null},"SellerMedicine":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"price","kind":"scalar","type":"Float"},{"name":"originalPrice","kind":"scalar","type":"Float"},{"name":"stockQuantity","kind":"scalar","type":"Int"},{"name":"expiryDate","kind":"scalar","type":"DateTime"},{"name":"batchNumber","kind":"scalar","type":"String"},{"name":"isAvailable","kind":"scalar","type":"Boolean"},{"name":"discount","kind":"scalar","type":"Float"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"medicineId","kind":"scalar","type":"String"},{"name":"medicine","kind":"object","type":"Medicine","relationName":"MedicineToSellerMedicine"},{"name":"sellerId","kind":"scalar","type":"String"},{"name":"seller","kind":"object","type":"User","relationName":"SellerMedicineToUser"},{"name":"cartItems","kind":"object","type":"CartItem","relationName":"CartItemToSellerMedicine"},{"name":"orderItems","kind":"object","type":"OrderItem","relationName":"OrderItemToSellerMedicine"}],"dbName":null},"Cart":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"CartToUser"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"items","kind":"object","type":"CartItem","relationName":"CartToCartItem"}],"dbName":null},"CartItem":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"quantity","kind":"scalar","type":"Int"},{"name":"cartId","kind":"scalar","type":"String"},{"name":"cart","kind":"object","type":"Cart","relationName":"CartToCartItem"},{"name":"sellerMedicineId","kind":"scalar","type":"String"},{"name":"sellerMedicine","kind":"object","type":"SellerMedicine","relationName":"CartItemToSellerMedicine"}],"dbName":null},"Order":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"orderNumber","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"OrderToUser"},{"name":"totalAmount","kind":"scalar","type":"Float"},{"name":"discount","kind":"scalar","type":"Float"},{"name":"finalAmount","kind":"scalar","type":"Float"},{"name":"status","kind":"enum","type":"OrderStatus"},{"name":"shippingAddress","kind":"scalar","type":"String"},{"name":"paymentMethod","kind":"scalar","type":"String"},{"name":"notes","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"payment","kind":"object","type":"Payment","relationName":"OrderToPayment"},{"name":"items","kind":"object","type":"OrderItem","relationName":"OrderToOrderItem"},{"name":"orderLogs","kind":"object","type":"OrderLog","relationName":"OrderToOrderLog"},{"name":"reviews","kind":"object","type":"Review","relationName":"OrderToReview"}],"dbName":null},"OrderItem":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"price","kind":"scalar","type":"Float"},{"name":"quantity","kind":"scalar","type":"Int"},{"name":"discount","kind":"scalar","type":"Float"},{"name":"subtotal","kind":"scalar","type":"Float"},{"name":"orderId","kind":"scalar","type":"String"},{"name":"order","kind":"object","type":"Order","relationName":"OrderToOrderItem"},{"name":"sellerMedicineId","kind":"scalar","type":"String"},{"name":"sellerMedicine","kind":"object","type":"SellerMedicine","relationName":"OrderItemToSellerMedicine"}],"dbName":null},"OrderLog":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"orderId","kind":"scalar","type":"String"},{"name":"status","kind":"enum","type":"OrderStatus"},{"name":"notes","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"order","kind":"object","type":"Order","relationName":"OrderToOrderLog"}],"dbName":null},"Review":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"ReviewToUser"},{"name":"rating","kind":"scalar","type":"Int"},{"name":"comment","kind":"scalar","type":"String"},{"name":"isVerified","kind":"scalar","type":"Boolean"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"medicineId","kind":"scalar","type":"String"},{"name":"medicine","kind":"object","type":"Medicine","relationName":"MedicineToReview"},{"name":"orderId","kind":"scalar","type":"String"},{"name":"order","kind":"object","type":"Order","relationName":"OrderToReview"}],"dbName":null},"User":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"name","kind":"scalar","type":"String"},{"name":"email","kind":"scalar","type":"String"},{"name":"emailVerified","kind":"scalar","type":"Boolean"},{"name":"image","kind":"scalar","type":"String"},{"name":"role","kind":"enum","type":"UserRole"},{"name":"status","kind":"enum","type":"UserStatus"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"sessions","kind":"object","type":"Session","relationName":"SessionToUser"},{"name":"accounts","kind":"object","type":"Account","relationName":"AccountToUser"},{"name":"carts","kind":"object","type":"Cart","relationName":"CartToUser"},{"name":"orders","kind":"object","type":"Order","relationName":"OrderToUser"},{"name":"reviews","kind":"object","type":"Review","relationName":"ReviewToUser"},{"name":"sellerMedicines","kind":"object","type":"SellerMedicine","relationName":"SellerMedicineToUser"}],"dbName":"user"},"Session":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"token","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"},{"name":"ipAddress","kind":"scalar","type":"String"},{"name":"userAgent","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"SessionToUser"}],"dbName":"session"},"Account":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"accountId","kind":"scalar","type":"String"},{"name":"providerId","kind":"scalar","type":"String"},{"name":"userId","kind":"scalar","type":"String"},{"name":"user","kind":"object","type":"User","relationName":"AccountToUser"},{"name":"accessToken","kind":"scalar","type":"String"},{"name":"refreshToken","kind":"scalar","type":"String"},{"name":"idToken","kind":"scalar","type":"String"},{"name":"accessTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"refreshTokenExpiresAt","kind":"scalar","type":"DateTime"},{"name":"scope","kind":"scalar","type":"String"},{"name":"password","kind":"scalar","type":"String"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"}],"dbName":"account"},"Verification":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"identifier","kind":"scalar","type":"String"},{"name":"value","kind":"scalar","type":"String"},{"name":"expiresAt","kind":"scalar","type":"DateTime"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"}],"dbName":"verification"},"Payment":{"fields":[{"name":"id","kind":"scalar","type":"String"},{"name":"amount","kind":"scalar","type":"Float"},{"name":"paymentMethod","kind":"scalar","type":"String"},{"name":"status","kind":"enum","type":"PaymentStatus"},{"name":"orderId","kind":"scalar","type":"String"},{"name":"order","kind":"object","type":"Order","relationName":"OrderToPayment"},{"name":"createdAt","kind":"scalar","type":"DateTime"},{"name":"updatedAt","kind":"scalar","type":"DateTime"}],"dbName":null}},"enums":{},"types":{}}');
 async function decodeBase64AsWasm(wasmBase64) {
   const { Buffer } = await import("buffer");
   const wasmArray = Buffer.from(wasmBase64, "base64");
@@ -438,7 +438,7 @@ var updateOrderStatus = async (orderId, sellerId, status, notes) => {
       };
     }
     const updatedOrder = await prisma.$transaction(async (tx) => {
-      const order2 = await tx.order.update({
+      const orderToUpdate = await tx.order.update({
         where: { id: orderId },
         data: { status }
       });
@@ -449,7 +449,22 @@ var updateOrderStatus = async (orderId, sellerId, status, notes) => {
           notes: notes || `Status updated to ${status}`
         }
       });
-      return order2;
+      if (status === OrderStatus.DELIVERED) {
+        const existingPayment = await tx.payment.findUnique({
+          where: { orderId }
+        });
+        if (!existingPayment) {
+          await tx.payment.create({
+            data: {
+              orderId,
+              amount: orderToUpdate.finalAmount,
+              status: "PAID",
+              paymentMethod: orderToUpdate.paymentMethod
+            }
+          });
+        }
+      }
+      return orderToUpdate;
     });
     return {
       statusCode: 200,
@@ -795,15 +810,47 @@ var orderController = {
 // src/lib/auth.ts
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
+import "dotenv/config";
 var auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:5000",
   database: prismaAdapter(prisma, {
     provider: "postgresql"
     // or "mysql", "postgresql", ...etc
   }),
-  trustedOrigins: [process.env.APP_URL],
+  session: {
+    cookieCache: {
+      enabled: true,
+      maxAge: 5 * 60
+      // 5 minutes
+    }
+  },
+  advanced: {
+    cookiePrefix: "better-auth",
+    useSecureCookies: true,
+    // Must be true for SameSite: None
+    crossSiteCookies: {
+      enabled: true,
+      // Enable this
+      allowedOrigins: [process.env.APP_URL, "http://localhost:3000"]
+      // Your frontend URL
+    },
+    // Add this to ensure the browser accepts the cookie from a different domain
+    cookieAttributes: {
+      sameSite: "none",
+      secure: true
+    },
+    disableCSRFCheck: true
+  },
+  trustedOrigins: [process.env.APP_URL, "http://localhost:3000"],
   emailAndPassword: {
     enabled: true,
     autoSignIn: true
+  },
+  socialProviders: {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET
+    }
   },
   user: {
     additionalFields: {
@@ -1809,6 +1856,24 @@ var categoryRouter = router3;
 // src/modules/admin/admin.router.ts
 import { Router as Router3 } from "express";
 
+// src/helpers/dateHelpers.ts
+var getLast6MonthsBuckets = () => {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const result = [];
+  const currentDate = /* @__PURE__ */ new Date();
+  currentDate.setDate(1);
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(currentDate.getTime());
+    d.setMonth(currentDate.getMonth() - i);
+    result.push({
+      name: months[d.getMonth()],
+      year: d.getFullYear(),
+      month: d.getMonth()
+    });
+  }
+  return result;
+};
+
 // src/modules/admin/admin.service.ts
 var getAllUsers = async () => {
   const users = await prisma.user.findMany({
@@ -1936,6 +2001,10 @@ var unbanUser = async (userId) => {
   };
 };
 var getStats = async () => {
+  const sixMonthsAgo = /* @__PURE__ */ new Date();
+  sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+  sixMonthsAgo.setDate(1);
+  sixMonthsAgo.setHours(0, 0, 0, 0);
   const [
     totalUsers,
     totalCustomers,
@@ -1945,7 +2014,13 @@ var getStats = async () => {
     bannedUsers,
     totalOrders,
     totalMedicines,
-    totalCategories
+    totalCategories,
+    payments,
+    recentOrders,
+    recentPayments,
+    categoriesInfo,
+    recentLogs,
+    recentNewUsers
   ] = await Promise.all([
     prisma.user.count(),
     prisma.user.count({ where: { role: UserRole.CUSTOMER } }),
@@ -1955,8 +2030,66 @@ var getStats = async () => {
     prisma.user.count({ where: { status: UserStatus.BANNED } }),
     prisma.order.count(),
     prisma.medicine.count(),
-    prisma.medicineCategory.count()
+    prisma.medicineCategory.count(),
+    prisma.payment.aggregate({
+      _sum: { amount: true },
+      where: { status: "PAID" }
+    }),
+    prisma.order.findMany({
+      where: { createdAt: { gte: sixMonthsAgo } },
+      select: { createdAt: true }
+    }),
+    prisma.payment.findMany({
+      where: { createdAt: { gte: sixMonthsAgo }, status: "PAID" },
+      select: { createdAt: true, amount: true }
+    }),
+    prisma.medicineCategory.findMany({
+      include: {
+        _count: {
+          select: { medicines: true }
+        }
+      }
+    }),
+    prisma.orderLog.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5,
+      include: { order: { select: { orderNumber: true } } }
+    }),
+    prisma.user.findMany({
+      orderBy: { createdAt: "desc" },
+      take: 5
+    })
   ]);
+  const totalRevenue = payments._sum.amount || 0;
+  const buckets = getLast6MonthsBuckets();
+  const monthlyOrdersData = buckets.map((b) => ({ name: b.name, orders: 0 }));
+  recentOrders.forEach((o) => {
+    const monthName = o.createdAt.toLocaleString("en-US", { month: "short" });
+    const index = monthlyOrdersData.findIndex((m) => m.name === monthName);
+    if (index !== -1) monthlyOrdersData[index].orders++;
+  });
+  const revenueData = buckets.map((b) => ({ name: b.name, revenue: 0 }));
+  recentPayments.forEach((p) => {
+    const monthName = p.createdAt.toLocaleString("en-US", { month: "short" });
+    const index = revenueData.findIndex((m) => m.name === monthName);
+    if (index !== -1) revenueData[index].revenue += p.amount;
+  });
+  const categoryData = categoriesInfo.map((c) => ({
+    name: c.name,
+    value: c._count.medicines
+  })).filter((c) => c.value > 0);
+  const recentActivity = [
+    ...recentLogs.map((log) => ({
+      action: `Order #${log.order.orderNumber} ${log.status.toLowerCase()}`,
+      time: log.createdAt.toISOString(),
+      type: "order"
+    })),
+    ...recentNewUsers.map((u) => ({
+      action: `New user ${u.name} registered`,
+      time: u.createdAt.toISOString(),
+      type: "user"
+    }))
+  ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime()).slice(0, 5);
   const stats = {
     users: {
       total: totalUsers,
@@ -1967,9 +2100,16 @@ var getStats = async () => {
       banned: bannedUsers
     },
     platform: {
+      revenue: totalRevenue,
       orders: totalOrders,
       medicines: totalMedicines,
       categories: totalCategories
+    },
+    charts: {
+      monthlyOrdersData,
+      revenueData,
+      categoryData,
+      recentActivity
     }
   };
   return {
@@ -2736,11 +2876,189 @@ router6.post(
 router6.get("/medicine/:medicineId", reviewController.getMedicineReviews);
 var reviewRouter = router6;
 
+// src/modules/user/user.router.ts
+import { Router as Router6 } from "express";
+
+// src/modules/user/user.service.ts
+var getSellerStats = async (sellerId) => {
+  try {
+    const sixMonthsAgo = /* @__PURE__ */ new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+    const [totalMedicines, orderItemsCount, deliveredItems, recentOrderItems] = await Promise.all([
+      prisma.sellerMedicine.count({
+        where: { sellerId }
+      }),
+      prisma.orderItem.count({
+        where: { sellerMedicine: { sellerId } }
+      }),
+      prisma.orderItem.aggregate({
+        _sum: { subtotal: true },
+        where: {
+          sellerMedicine: { sellerId },
+          order: { status: OrderStatus.DELIVERED }
+        }
+      }),
+      prisma.orderItem.findMany({
+        where: {
+          sellerMedicine: { sellerId },
+          order: { createdAt: { gte: sixMonthsAgo } }
+        },
+        include: { order: { select: { createdAt: true, status: true } } }
+      })
+    ]);
+    const buckets = getLast6MonthsBuckets();
+    const salesData = buckets.map((b) => ({ name: b.name, sales: 0 }));
+    const revenueData = buckets.map((b) => ({ name: b.name, revenue: 0 }));
+    recentOrderItems.forEach((item) => {
+      const monthName = item.order.createdAt.toLocaleString("en-US", { month: "short" });
+      const salesIndex = salesData.findIndex((m) => m.name === monthName);
+      if (salesIndex !== -1) salesData[salesIndex].sales++;
+      if (item.order.status === OrderStatus.DELIVERED) {
+        const revIndex = revenueData.findIndex((m) => m.name === monthName);
+        if (revIndex !== -1) revenueData[revIndex].revenue += item.subtotal;
+      }
+    });
+    const stats = {
+      medicines: totalMedicines,
+      orders: orderItemsCount,
+      revenue: deliveredItems._sum.subtotal || 0,
+      charts: {
+        salesData,
+        revenueData
+      }
+    };
+    return {
+      statusCode: 200,
+      success: true,
+      message: "Seller stats retrieved successfully",
+      data: stats
+    };
+  } catch (error) {
+    console.error("Get seller stats error:", error);
+    return {
+      statusCode: 500,
+      success: false,
+      message: "Failed to retrieve seller stats",
+      data: null
+    };
+  }
+};
+var getCustomerStats = async (userId) => {
+  try {
+    const sixMonthsAgo = /* @__PURE__ */ new Date();
+    sixMonthsAgo.setMonth(sixMonthsAgo.getMonth() - 5);
+    sixMonthsAgo.setDate(1);
+    sixMonthsAgo.setHours(0, 0, 0, 0);
+    const [totalOrders, pendingOrders, deliveredOrders, allOrders, recentDeliveredOrders] = await Promise.all([
+      prisma.order.count({
+        where: { userId }
+      }),
+      prisma.order.count({
+        where: { userId, status: OrderStatus.PROCESSING }
+      }),
+      prisma.order.aggregate({
+        _sum: { finalAmount: true },
+        where: { userId, status: OrderStatus.DELIVERED }
+      }),
+      prisma.order.findMany({
+        where: { userId },
+        select: { status: true }
+      }),
+      prisma.order.findMany({
+        where: { userId, status: OrderStatus.DELIVERED, createdAt: { gte: sixMonthsAgo } },
+        select: { createdAt: true, finalAmount: true }
+      })
+    ]);
+    const orderStatusCounts = {};
+    allOrders.forEach((o) => {
+      orderStatusCounts[o.status] = (orderStatusCounts[o.status] || 0) + 1;
+    });
+    const orderStatusData = Object.entries(orderStatusCounts).map(([name, value]) => ({
+      name: name.charAt(0) + name.slice(1).toLowerCase(),
+      value
+    }));
+    const buckets = getLast6MonthsBuckets();
+    const spendingData = buckets.map((b) => ({ name: b.name, spending: 0 }));
+    recentDeliveredOrders.forEach((o) => {
+      const monthName = o.createdAt.toLocaleString("en-US", { month: "short" });
+      const index = spendingData.findIndex((m) => m.name === monthName);
+      if (index !== -1) spendingData[index].spending += o.finalAmount;
+    });
+    const stats = {
+      totalOrders,
+      pendingOrders,
+      totalSpent: deliveredOrders._sum.finalAmount || 0,
+      charts: {
+        orderStatusData,
+        spendingData
+      }
+    };
+    return {
+      statusCode: 200,
+      success: true,
+      message: "Customer stats retrieved successfully",
+      data: stats
+    };
+  } catch (error) {
+    console.error("Get customer stats error:", error);
+    return {
+      statusCode: 500,
+      success: false,
+      message: "Failed to retrieve customer stats",
+      data: null
+    };
+  }
+};
+var userService = {
+  getSellerStats,
+  getCustomerStats
+};
+
+// src/modules/user/user.controller.ts
+var getStats3 = async (req, res) => {
+  const user = req.user;
+  let result;
+  if (user.role === UserRole.SELLER) {
+    result = await userService.getSellerStats(user.id);
+  } else if (user.role === UserRole.CUSTOMER) {
+    result = await userService.getCustomerStats(user.id);
+  } else {
+    return res.status(403).json({
+      success: false,
+      message: "Role not supported for this stats endpoint",
+      data: null
+    });
+  }
+  res.status(result.statusCode).json(result);
+};
+var userController = {
+  getStats: getStats3
+};
+
+// src/modules/user/user.router.ts
+var router7 = Router6();
+router7.get(
+  "/stats",
+  authMiddleware(UserRole.SELLER, UserRole.CUSTOMER),
+  userController.getStats
+);
+var userRouter = router7;
+
 // src/app.ts
 var app = express2();
+var allowedOrigins = [
+  process.env.APP_URL || "http://localhost:3000"
+  // Production frontend URL
+].filter(Boolean);
 app.use(
   cors({
-    origin: process.env.APP_URL || "http://localhost:3000",
+    origin: [
+      "https://medistore-xi.vercel.app",
+      "http://localhost:3000",
+      process.env.APP_URL || ""
+    ].filter(Boolean),
     credentials: true
   })
 );
@@ -2752,6 +3070,7 @@ app.use("/api/admin", adminRouter);
 app.use("/api/orders", orderRouter);
 app.use("/api/cart", cartRouter);
 app.use("/api/reviews", reviewRouter);
+app.use("/api/user", userRouter);
 app.get("/", (req, res) => {
   res.status(200).send({
     success: true,

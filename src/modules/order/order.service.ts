@@ -393,7 +393,7 @@ const updateOrderStatus = async (
     }
 
     const updatedOrder = await prisma.$transaction(async (tx) => {
-      const order = await tx.order.update({
+      const orderToUpdate = await tx.order.update({
         where: { id: orderId },
         data: { status },
       });
@@ -406,7 +406,24 @@ const updateOrderStatus = async (
         },
       });
 
-      return order;
+      if (status === OrderStatus.DELIVERED) {
+        const existingPayment = await tx.payment.findUnique({
+          where: { orderId }
+        });
+
+        if (!existingPayment) {
+          await tx.payment.create({
+            data: {
+              orderId,
+              amount: orderToUpdate.finalAmount,
+              status: "PAID",
+              paymentMethod: orderToUpdate.paymentMethod
+            }
+          });
+        }
+      }
+
+      return orderToUpdate;
     });
 
     return {

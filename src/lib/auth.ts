@@ -1,8 +1,10 @@
 import { betterAuth } from "better-auth";
 import { prismaAdapter } from "better-auth/adapters/prisma";
 import { prisma } from "./prisma";
+import "dotenv/config";
 
 export const auth = betterAuth({
+  baseURL: process.env.BETTER_AUTH_URL || "http://localhost:5000",
   database: prismaAdapter(prisma, {
     provider: "postgresql", // or "mysql", "postgresql", ...etc
   }),
@@ -17,7 +19,7 @@ export const auth = betterAuth({
     useSecureCookies: true, // Must be true for SameSite: None
     crossSiteCookies: {
       enabled: true, // Enable this
-      allowedOrigins: [process.env.APP_URL!], // Your frontend URL
+      allowedOrigins: [process.env.APP_URL!, "http://localhost:3000"], // Your frontend URL
     },
     // Add this to ensure the browser accepts the cookie from a different domain
     cookieAttributes: {
@@ -27,7 +29,7 @@ export const auth = betterAuth({
     disableCSRFCheck: true,
   },
 
-  trustedOrigins: [process.env.APP_URL!],
+  trustedOrigins: [process.env.APP_URL!, "http://localhost:3000"],
   emailAndPassword: {
     enabled: true,
     autoSignIn: true,

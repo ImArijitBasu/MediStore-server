@@ -25,6 +25,12 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
 model MedicineCategory {
   id          String     @id @default(uuid())
   name        String
@@ -126,6 +132,7 @@ model Order {
   notes           String?
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
+  payment         Payment?
   items           OrderItem[]
   orderLogs       OrderLog[]
   reviews         Review[]
@@ -247,4 +254,18 @@ model Verification {
 
   @@index([identifier])
   @@map("verification")
+}
+
+model Payment {
+  id            String        @id @default(uuid())
+  amount        Float
+  paymentMethod String        @default("COD")
+  status        PaymentStatus @default(PAID)
+  orderId       String        @unique
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([orderId])
+  @@index([status])
 }
